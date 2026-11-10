@@ -2,10 +2,10 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Pixel Doodle Jump</title>
+<title>Pixel Doodle Jump — Improved</title>
 <style>
 body { background: #000; margin: 0; display: flex; justify-content: center; align-items: center; height: 100vh; image-rendering: pixelated; }
-canvas { border: 4px solid #333; image-rendering: pixelated; background: #87CEEB; }
+canvas { border: 6px solid #333; image-rendering: pixelated; box-shadow: 0 0 30px #4ec0ca; }
 </style>
 </head>
 <body>
@@ -14,74 +14,130 @@ canvas { border: 4px solid #333; image-rendering: pixelated; background: #87CEEB
 const canvas = document.getElementById('game');
 const ctx = canvas.getContext('2d');
 ctx.imageSmoothingEnabled = false;
-let doodle = {x:180, y:500, vx:0, vy:0};
-let platforms = [];
-let score = 0;
-let cameraY = 0;
 
-function spawnPlatforms() {
+let doodle, platforms, score, best, cameraY, state;
+
+function init() {
+  doodle = {x:180, y:500, vx:0, vy:0};
   platforms = [];
-  for (let i=0; i<15; i++) {
-    platforms.push({x: Math.random()*340, y: 600 - i*50, w:60, h:10});
+  score = 0;
+  best = parseInt(localStorage.getItem('doodleBest')||'0');
+  cameraY = 0;
+  state = 'start';
+  for (let i=0; i<12; i++) {
+    platforms.push({x: Math.random()*340, y: 600 - i*50, w:70, h:12});
   }
 }
-spawnPlatforms();
 
-function loop() {
-  doodle.vy += 0.4;
-  doodle.x += doodle.vx;
-  doodle.y += doodle.vy;
-  if (doodle.x < 0) doodle.x = 370;
-  if (doodle.x > 370) doodle.x = 0;
+function drawDoodle() {
+  ctx.fillStyle = '#ff0';
+  ctx.fillRect(doodle.x, doodle.y, 32, 32);
+  ctx.fillStyle = '#000';
+  ctx.fillRect(doodle.x+6, doodle.y+8, 6, 6);
+  ctx.fillRect(doodle.x+20, doodle.y+8, 6, 6);
+  ctx.fillStyle = '#f80';
+  ctx.fillRect(doodle.x+8, doodle.y+20, 16, 4);
+}
 
-  if (doodle.vy > 0) {
-    platforms.forEach(p => {
-      if (doodle.x + 20 > p.x && doodle.x < p.x + p.w && doodle.y + 30 > p.y && doodle.y + 30 < p.y + p.h + 10) {
-        doodle.vy = -10;
-      }
-    });
-  }
-
-  if (doodle.y < cameraY + 200) {
-    cameraY = doodle.y - 200;
-    score = Math.max(score, Math.floor(-cameraY / 10));
-  }
-  platforms = platforms.filter(p => p.y > cameraY - 50);
-  while (platforms.length < 15) {
-    const last = platforms[platforms.length-1] || {y:600};
-    platforms.push({x: Math.random()*340, y: last.y - 40 - Math.random()*30, w:60, h:10});
-  }
-
-  if (doodle.y > cameraY + 650) {
-    alert('Game Over! Score: '+score);
-    location.reload();
-  }
-
-  ctx.fillStyle = '#87CEEB';
+function draw() {
+  const grd = ctx.createLinearGradient(0,0,0,600);
+  grd.addColorStop(0, '#4ec0ca');
+  grd.addColorStop(1, '#87CEEB');
+  ctx.fillStyle = grd;
   ctx.fillRect(0,0,400,600);
+
   ctx.save();
   ctx.translate(0, -cameraY);
   platforms.forEach(p => {
     ctx.fillStyle = '#0a0';
     ctx.fillRect(p.x, p.y, p.w, p.h);
+    ctx.fillStyle = '#4f4';
+    ctx.fillRect(p.x, p.y, p.w, 4);
   });
-  ctx.fillStyle = '#ff0';
-  ctx.fillRect(doodle.x, doodle.y, 30, 30);
+  drawDoodle();
   ctx.restore();
+
   ctx.fillStyle = '#000';
-  ctx.font = '20px monospace';
+  ctx.font = 'bold 22px monospace';
   ctx.fillText('Score: '+score, 10, 30);
+  ctx.font = '16px monospace';
+  ctx.fillText('Best: '+best, 10, 50);
+
+  if (state === 'start') {
+    ctx.fillStyle = 'rgba(0,0,0,0.5)';
+    ctx.fillRect(0,0,400,600);
+    ctx.fillStyle = '#ff0';
+    ctx.font = 'bold 32px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('DOODLE JUMP', 200, 220);
+    ctx.font = '18px monospace';
+    ctx.fillStyle = '#fff';
+    ctx.fillText('Arrows to move', 200, 270);
+    ctx.fillText('SPACE to start', 200, 310);
+  }
+  if (state === 'over') {
+    ctx.fillStyle = 'rgba(0,0,0,0.6)';
+    ctx.fillRect(0,0,400,600);
+    ctx.fillStyle = '#f44';
+    ctx.font = 'bold 32px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('GAME OVER', 200, 220);
+    ctx.fillStyle = '#fff';
+    ctx.font = '20px monospace';
+    ctx.fillText('Score: '+score, 200, 270);
+    ctx.fillText('SPACE to retry', 200, 320);
+  }
+}
+
+function update() {
+  if (state !== 'play') return;
+  doodle.vy += 0.45;
+  doodle.x += doodle.vx;
+  doodle.y += doodle.vy;
+  if (doodle.x < -20) doodle.x = 380;
+  if (doodle.x > 400) doodle.x = -20;
+
+  if (doodle.vy > 0) {
+    platforms.forEach(p => {
+      if (doodle.x + 20 > p.x && doodle.x < p.x + p.w && doodle.y + 32 > p.y && doodle.y + 32 < p.y + p.h + 12) {
+        doodle.vy = -11;
+      }
+    });
+  }
+
+  if (doodle.y < cameraY + 180) {
+    cameraY = doodle.y - 180;
+    score = Math.max(score, Math.floor(-cameraY / 10));
+    if (score > best) { best = score; localStorage.setItem('doodleBest', best); }
+  }
+  platforms = platforms.filter(p => p.y > cameraY - 60);
+  while (platforms.length < 14) {
+    const lastY = Math.min(...platforms.map(p => p.y));
+    platforms.push({x: Math.random()*330, y: lastY - 40 - Math.random()*25, w:70, h:12});
+  }
+
+  if (doodle.y > cameraY + 680) state = 'over';
+}
+
+function loop() {
+  update();
+  draw();
   requestAnimationFrame(loop);
 }
 
 document.addEventListener('keydown', e => {
-  if (e.key === 'ArrowLeft') doodle.vx = -5;
-  if (e.key === 'ArrowRight') doodle.vx = 5;
+  if ((state === 'start' || state === 'over') && e.code === 'Space') {
+    init(); state = 'play'; return;
+  }
+  if (state !== 'play') return;
+  if (e.key === 'ArrowLeft') doodle.vx = -6;
+  if (e.key === 'ArrowRight') doodle.vx = 6;
 });
 document.addEventListener('keyup', e => {
   if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') doodle.vx = 0;
 });
 
+init();
 loop();
 </script>
 </body>

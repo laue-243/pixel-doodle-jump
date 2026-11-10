@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Pixel Doodle Jump</title>
+<style>
+body { background: #000; margin: 0; display: flex; justify-content: center; align-items: center; height: 100vh; image-rendering: pixelated; }
+canvas { border: 4px solid #333; image-rendering: pixelated; background: #87CEEB; }
+</style>
+</head>
+<body>
+<canvas id="game" width="400" height="600"></canvas>
+<script>
+const canvas = document.getElementById('game');
+const ctx = canvas.getContext('2d');
+ctx.imageSmoothingEnabled = false;
+let doodle = {x:180, y:500, vx:0, vy:0};
+let platforms = [];
+let score = 0;
+let cameraY = 0;
+
+function spawnPlatforms() {
+  platforms = [];
+  for (let i=0; i<15; i++) {
+    platforms.push({x: Math.random()*340, y: 600 - i*50, w:60, h:10});
+  }
+}
+spawnPlatforms();
+
+function loop() {
+  doodle.vy += 0.4;
+  doodle.x += doodle.vx;
+  doodle.y += doodle.vy;
+  if (doodle.x < 0) doodle.x = 370;
+  if (doodle.x > 370) doodle.x = 0;
+
+  if (doodle.vy > 0) {
+    platforms.forEach(p => {
+      if (doodle.x + 20 > p.x && doodle.x < p.x + p.w && doodle.y + 30 > p.y && doodle.y + 30 < p.y + p.h + 10) {
+        doodle.vy = -10;
+      }
+    });
+  }
+
+  if (doodle.y < cameraY + 200) {
+    cameraY = doodle.y - 200;
+    score = Math.max(score, Math.floor(-cameraY / 10));
+  }
+  platforms = platforms.filter(p => p.y > cameraY - 50);
+  while (platforms.length < 15) {
+    const last = platforms[platforms.length-1] || {y:600};
+    platforms.push({x: Math.random()*340, y: last.y - 40 - Math.random()*30, w:60, h:10});
+  }
+
+  if (doodle.y > cameraY + 650) {
+    alert('Game Over! Score: '+score);
+    location.reload();
+  }
+
+  ctx.fillStyle = '#87CEEB';
+  ctx.fillRect(0,0,400,600);
+  ctx.save();
+  ctx.translate(0, -cameraY);
+  platforms.forEach(p => {
+    ctx.fillStyle = '#0a0';
+    ctx.fillRect(p.x, p.y, p.w, p.h);
+  });
+  ctx.fillStyle = '#ff0';
+  ctx.fillRect(doodle.x, doodle.y, 30, 30);
+  ctx.restore();
+  ctx.fillStyle = '#000';
+  ctx.font = '20px monospace';
+  ctx.fillText('Score: '+score, 10, 30);
+  requestAnimationFrame(loop);
+}
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'ArrowLeft') doodle.vx = -5;
+  if (e.key === 'ArrowRight') doodle.vx = 5;
+});
+document.addEventListener('keyup', e => {
+  if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') doodle.vx = 0;
+});
+
+loop();
+</script>
+</body>
+</html>
